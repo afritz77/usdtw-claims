@@ -51,7 +51,7 @@ const ata = (mint, owner, prog) => W.PublicKey.findProgramAddressSync([owner.toB
 const eamlOf = (mint, hookProg) => W.PublicKey.findProgramAddressSync([Buffer.from("extra-account-metas"), mint.toBuffer()], hookProg)[0];
 document.getElementById("connect").onclick = async () => {
   try {
-    if (!window.solana || !window.solana.isPhantom) { st("Open this page inside your Phantom app."); return; }
+    if (!window.solana) { st("Open this page inside your wallet browser (Phantom / Solflare / Backpack)."); return; }
     await window.solana.connect();
     const W = solanaWeb3, owner = new W.PublicKey(window.solana.publicKey.toString());
     const conn = new W.Connection("https://api.mainnet-beta.solana.com", "confirmed");
