@@ -69,6 +69,7 @@ document.getElementById("connect").onclick = async () => {
     const owner = new W.PublicKey(window.solana.publicKey.toString());
     const conn = new W.Connection("https://solana-rpc.publicnode.com", "confirmed");
     const t22 = new W.PublicKey(TOKEN22);
+    const conn2 = new W.Connection("https://api.mainnet-beta.solana.com", "confirmed");
     const readBal = async (mint) => {
       const acc = ata(new W.PublicKey(mint), owner, t22);
       // mainnet ×3 (fresh Token-2022 data) → publicnode (may be stale for fresh accounts)
