@@ -48,7 +48,8 @@ const RATE_HOOK = 10000n;   // hook tokens per 1 USDC (whale-rewards premium rat
 const le = (n) => { const a = []; for (let i = 0; i < 8; i++) { a.push(Number(n % 256n)); n = n / 256n; } return a; };
 const st = (m) => document.getElementById("status").textContent = m;
 const W = solanaWeb3;
-const ata = (mint, owner, prog) => { if (!mint || !owner || !prog) throw new Error("bad token account args"); return W.PublicKey.findProgramAddressSync([owner.toBuffer(), prog.toBuffer(), mint.toBuffer()])[0]; };
+const ATA_PROG = new W.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+const ata = (mint, owner, prog) => W.PublicKey.findProgramAddressSync([owner.toBuffer(), prog.toBuffer(), mint.toBuffer()], ATA_PROG)[0];
 const eamlOf = (mint, hookProg) => W.PublicKey.findProgramAddressSync([Uint8Array.from([101,120,116,114,97,45,97,99,99,111,117,110,116,45,109,101,116,97,115]), mint.toBuffer()], hookProg)[0];
 document.getElementById("connect").onclick = async () => {
   try {
